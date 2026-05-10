@@ -19,14 +19,15 @@ import {
   Meh,
   Frown,
   MoreVertical,
-  CheckCircle2,
-  Sparkles
+  Sparkles,
+  Menu,
+  X
 } from 'lucide-react';
 import { taskService, wellnessService, aiService } from '../services/api';
 import Analytics from './Analytics';
 import Planner from './Planner';
 
-const Sidebar = ({ activeTab, setActiveTab }) => {
+const Sidebar = ({ activeTab, setActiveTab, isOpen, setIsOpen }) => {
   const menuItems = [
     { id: 'dashboard', icon: <LayoutDashboard />, label: 'Dashboard' },
     { id: 'chat', icon: <MessageSquare />, label: 'AI Chat' },
@@ -36,54 +37,79 @@ const Sidebar = ({ activeTab, setActiveTab }) => {
   ];
 
   return (
-    <div className="fixed left-0 top-0 h-screen w-24 lg:w-72 glass border-r flex flex-col p-6 z-50">
-      <div className="flex items-center gap-3 mb-12 px-2">
-        <div className="p-2 bg-primary rounded-xl shrink-0">
-          <Brain className="w-6 h-6 text-white" />
-        </div>
-        <span className="text-xl font-bold font-outfit hidden lg:block">MindMate <span className="text-primary">AI</span></span>
-      </div>
+    <>
+      {/* Mobile Overlay */}
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setIsOpen(false)}
+            className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[60] lg:hidden"
+          />
+        )}
+      </AnimatePresence>
 
-      <nav className="flex-1 space-y-2">
-        {menuItems.map((item) => (
-          <button
-            key={item.id}
-            onClick={() => setActiveTab(item.id)}
-            className={`w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl transition-all duration-300 group ${
-              activeTab === item.id 
-                ? 'bg-primary text-white shadow-lg shadow-primary/20' 
-                : 'text-slate-500 hover:bg-slate-50 hover:text-primary'
-            }`}
-          >
-            <span className="shrink-0">{React.cloneElement(item.icon, { className: "w-6 h-6" })}</span>
-            <span className="font-bold hidden lg:block">{item.label}</span>
+      <div className={`fixed left-0 top-0 h-screen glass border-r flex flex-col p-6 z-[70] transition-all duration-500 
+        ${isOpen ? 'translate-x-0 w-72' : '-translate-x-full lg:translate-x-0 w-24 lg:w-72'}`}>
+        
+        <div className="flex items-center justify-between mb-12 px-2">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-primary rounded-xl shrink-0">
+              <Brain className="w-6 h-6 text-white" />
+            </div>
+            {(isOpen || true) && <span className="text-xl font-bold font-outfit hidden lg:block">MindMate <span className="text-primary">AI</span></span>}
+            {isOpen && <span className="text-xl font-bold font-outfit lg:hidden">MindMate <span className="text-primary">AI</span></span>}
+          </div>
+          <button onClick={() => setIsOpen(false)} className="lg:hidden p-2 hover:bg-slate-50 rounded-xl text-slate-400">
+            <X className="w-6 h-6" />
           </button>
-        ))}
-      </nav>
-
-      <div className="mt-auto space-y-4 pt-6 border-t">
-        <div className="hidden lg:flex items-center gap-3 px-4 py-3 bg-slate-50 rounded-2xl">
-          <div className="w-10 h-10 rounded-full bg-slate-200 overflow-hidden">
-            <img src="https://i.pravatar.cc/150?u=42" alt="avatar" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="font-bold text-sm truncate">Alex Johnson</p>
-            <p className="text-xs text-slate-500 truncate">Pro Student</p>
-          </div>
         </div>
-        <button className="w-full flex items-center gap-4 px-4 py-3.5 text-slate-500 hover:text-red-500 transition-colors">
-          <LogOut className="w-6 h-6 shrink-0" />
-          <span className="font-bold hidden lg:block">Sign Out</span>
-        </button>
+
+        <nav className="flex-1 space-y-2">
+          {menuItems.map((item) => (
+            <button
+              key={item.id}
+              onClick={() => {
+                setActiveTab(item.id);
+                if (window.innerWidth < 1024) setIsOpen(false);
+              }}
+              className={`w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl transition-all duration-300 group ${
+                activeTab === item.id 
+                  ? 'bg-primary text-white shadow-lg shadow-primary/20' 
+                  : 'text-slate-500 hover:bg-slate-50 hover:text-primary'
+              }`}
+            >
+              <span className="shrink-0">{React.cloneElement(item.icon, { className: "w-6 h-6" })}</span>
+              <span className={`font-bold transition-opacity duration-300 ${isOpen ? 'block' : 'hidden lg:block'}`}>{item.label}</span>
+            </button>
+          ))}
+        </nav>
+
+        <div className="mt-auto space-y-4 pt-6 border-t">
+          <div className={`flex items-center gap-3 px-4 py-3 bg-slate-50 rounded-2xl ${isOpen ? 'flex' : 'hidden lg:flex'}`}>
+            <div className="w-10 h-10 rounded-full bg-slate-200 overflow-hidden shrink-0">
+              <img src="https://i.pravatar.cc/150?u=42" alt="avatar" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="font-bold text-sm truncate">Alex Johnson</p>
+              <p className="text-xs text-slate-500 truncate">Pro Student</p>
+            </div>
+          </div>
+          <button className="w-full flex items-center gap-4 px-4 py-3.5 text-slate-500 hover:text-red-500 transition-colors">
+            <LogOut className="w-6 h-6 shrink-0" />
+            <span className={`font-bold ${isOpen ? 'block' : 'hidden lg:block'}`}>Sign Out</span>
+          </button>
+        </div>
       </div>
-    </div>
+    </>
   );
 };
 
 const DashboardHome = ({ tasks, handleToggleTask, handleMoodLog }) => {
   return (
     <div className="space-y-8">
-      {/* ... previous code remains similar but using tasks ... */}
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
@@ -207,6 +233,7 @@ const DashboardHome = ({ tasks, handleToggleTask, handleMoodLog }) => {
 
 const Dashboard = () => {
   const [activeTab, setActiveTab] = useState('dashboard');
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [tasks, setTasks] = useState([]);
   const [moods, setMoods] = useState([]);
   const [chatMessages, setChatMessages] = useState([
@@ -270,10 +297,21 @@ const Dashboard = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC]">
-      <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} />
+    <div className="min-h-screen bg-[#F8FAFC] overflow-x-hidden">
+      {/* Mobile Header */}
+      <div className="lg:hidden fixed top-0 left-0 right-0 h-20 glass border-b px-6 flex items-center justify-between z-[55]">
+        <div className="flex items-center gap-3">
+          <div className="p-2 bg-primary rounded-xl"><Brain className="w-6 h-6 text-white" /></div>
+          <span className="text-xl font-bold font-outfit">MindMate AI</span>
+        </div>
+        <button onClick={() => setIsSidebarOpen(true)} className="p-2 hover:bg-slate-50 rounded-xl text-slate-500">
+          <Menu className="w-7 h-7" />
+        </button>
+      </div>
+
+      <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} isOpen={isSidebarOpen} setIsOpen={setIsSidebarOpen} />
       
-      <main className="lg:ml-72 p-6 lg:p-10 min-h-screen">
+      <main className="lg:ml-72 p-6 lg:p-10 min-h-screen pt-28 lg:pt-10">
         <AnimatePresence mode="wait">
           <motion.div
             key={activeTab}

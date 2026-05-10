@@ -1,13 +1,18 @@
 {
-  "devDependencies": {
-    "autoprefixer": "^10.5.0",
-    "postcss": "^8.5.14",
-    "tailwindcss": "^4.3.0"
+  "name": "mindmate-ai",
+  "version": "1.0.0",
+  "description": "Premium AI-powered Student Wellness Platform",
+  "main": "server/index.js",
+  "scripts": {
+    "start": "node server/index.js",
+    "server": "cd server && npm start",
+    "client": "cd frontend && npm run dev",
+    "dev": "concurrently \"npm run server\" \"npm run client\"",
+    "build": "cd frontend && npm install && npm run build",
+    "install-all": "npm install && cd server && npm install && cd ../frontend && npm install",
+    "heroku-postbuild": "npm run build"
   },
   "dependencies": {
-    "clsx": "^2.1.1",
-    "framer-motion": "^12.38.0",
-    "lucide-react": "^1.14.0",
-    "tailwind-merge": "^3.5.0"
+    "concurrently": "^8.2.2"
   }
 }
