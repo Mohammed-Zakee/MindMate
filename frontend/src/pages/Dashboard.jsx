@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   LayoutDashboard, 
@@ -22,6 +22,9 @@ import {
   CheckCircle2,
   Sparkles
 } from 'lucide-react';
+import { taskService, wellnessService, aiService } from '../services/api';
+import Analytics from './Analytics';
+import Planner from './Planner';
 
 const Sidebar = ({ activeTab, setActiveTab }) => {
   const menuItems = [
@@ -77,9 +80,10 @@ const Sidebar = ({ activeTab, setActiveTab }) => {
   );
 };
 
-const DashboardHome = () => {
+const DashboardHome = ({ tasks, handleToggleTask, handleMoodLog }) => {
   return (
     <div className="space-y-8">
+      {/* ... previous code remains similar but using tasks ... */}
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
@@ -127,25 +131,26 @@ const DashboardHome = () => {
               <button className="p-2 hover:bg-slate-50 rounded-xl transition-colors"><MoreVertical className="w-5 h-5 text-slate-400" /></button>
             </div>
             <div className="space-y-4">
-              {[
-                { title: 'Advanced Calculus Assignment', tag: 'Academic', time: 'Due in 2h', color: 'bg-blue-500' },
-                { title: 'User Research Project', tag: 'Project', time: 'Tomorrow', color: 'bg-purple-500' },
-                { title: 'Daily Meditation', tag: 'Wellness', time: 'Completed', done: true, color: 'bg-emerald-500' },
-              ].map((task, i) => (
-                <div key={i} className={`flex items-center gap-4 p-4 rounded-2xl border border-slate-100 hover:border-primary/20 transition-all ${task.done ? 'bg-slate-50 opacity-60' : 'bg-white shadow-sm'}`}>
-                  <div className={`w-1.5 h-10 rounded-full ${task.color}`} />
+              {tasks.length > 0 ? tasks.map((task, i) => (
+                <div key={i} className={`flex items-center gap-4 p-4 rounded-2xl border border-slate-100 hover:border-primary/20 transition-all ${task.completed ? 'bg-slate-50 opacity-60' : 'bg-white shadow-sm'}`}>
+                  <div className={`w-1.5 h-10 rounded-full ${task.priority === 'high' ? 'bg-red-500' : task.priority === 'medium' ? 'bg-primary' : 'bg-wellness-positive'}`} />
                   <div className="flex-1">
-                    <h4 className={`font-bold ${task.done ? 'line-through text-slate-400' : 'text-slate-800'}`}>{task.title}</h4>
+                    <h4 className={`font-bold ${task.completed ? 'line-through text-slate-400' : 'text-slate-800'}`}>{task.title}</h4>
                     <div className="flex items-center gap-3 mt-1">
                       <span className="text-xs font-bold px-2 py-0.5 rounded-md bg-slate-100 text-slate-500 uppercase">{task.tag}</span>
-                      <span className="text-xs font-medium text-slate-400">{task.time}</span>
+                      <span className="text-xs font-medium text-slate-400">{task.deadline ? new Date(task.deadline).toLocaleDateString() : 'No deadline'}</span>
                     </div>
                   </div>
-                  <button className={`w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-all ${task.done ? 'bg-emerald-500 border-emerald-500 text-white' : 'border-slate-200'}`}>
-                    {task.done && <CheckCircle2 className="w-4 h-4" />}
+                  <button 
+                    onClick={() => handleToggleTask(task._id)}
+                    className={`w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-all ${task.completed ? 'bg-emerald-500 border-emerald-500 text-white' : 'border-slate-200'}`}
+                  >
+                    {task.completed && <CheckCircle2 className="w-4 h-4" />}
                   </button>
                 </div>
-              ))}
+              )) : (
+                <div className="text-center py-8 text-slate-400 font-medium">No tasks found. Add your first task below!</div>
+              )}
             </div>
             <button className="w-full mt-6 py-4 rounded-2xl border-2 border-dashed border-slate-200 text-slate-400 font-bold hover:border-primary hover:text-primary transition-all flex items-center justify-center gap-2 group">
               <Plus className="w-5 h-5 group-hover:rotate-90 transition-transform" />
@@ -173,11 +178,15 @@ const DashboardHome = () => {
             <h3 className="text-xl font-bold mb-6">How are you feeling?</h3>
             <div className="grid grid-cols-3 gap-4 mb-8">
               {[
-                { icon: <Smile />, label: 'Good' },
-                { icon: <Meh />, label: 'Neutral' },
-                { icon: <Frown />, label: 'Bad' },
+                { icon: <Smile />, label: 'Good', intensity: 8 },
+                { icon: <Meh />, label: 'Neutral', intensity: 5 },
+                { icon: <Frown />, label: 'Bad', intensity: 3 },
               ].map((m, i) => (
-                <button key={i} className="flex flex-col items-center gap-2 group">
+                <button 
+                  key={i} 
+                  onClick={() => handleMoodLog(m.label, m.intensity)}
+                  className="flex flex-col items-center gap-2 group"
+                >
                   <div className="w-16 h-16 rounded-2xl bg-slate-50 flex items-center justify-center text-slate-400 group-hover:bg-primary group-hover:text-white transition-all shadow-sm">
                     {React.cloneElement(m.icon, { className: "w-8 h-8" })}
                   </div>
@@ -198,6 +207,67 @@ const DashboardHome = () => {
 
 const Dashboard = () => {
   const [activeTab, setActiveTab] = useState('dashboard');
+  const [tasks, setTasks] = useState([]);
+  const [moods, setMoods] = useState([]);
+  const [chatMessages, setChatMessages] = useState([
+    { role: 'assistant', content: 'Hello Alex! I noticed you have been studying for 2 hours straight. How are you feeling? Remember to breathe. 🧘‍♂️' }
+  ]);
+  const [inputMessage, setInputMessage] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const fetchData = async () => {
+    try {
+      const [tasksRes, moodsRes] = await Promise.all([
+        taskService.getTasks(),
+        wellnessService.getMoods()
+      ]);
+      setTasks(tasksRes.data);
+      setMoods(moodsRes.data);
+    } catch (err) {
+      console.error('Error fetching data:', err);
+    }
+  };
+
+  const handleSendMessage = async () => {
+    if (!inputMessage.trim()) return;
+    
+    const userMsg = { role: 'user', content: inputMessage };
+    setChatMessages(prev => [...prev, userMsg]);
+    setInputMessage('');
+    setIsLoading(true);
+
+    try {
+      const res = await aiService.sendMessage(inputMessage);
+      setChatMessages(prev => [...prev, { role: 'assistant', content: res.data.reply }]);
+    } catch (err) {
+      console.error('AI Error:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleToggleTask = async (id) => {
+    try {
+      await taskService.toggleTask(id);
+      setTasks(prev => prev.map(t => t._id === id ? { ...t, completed: !t.completed } : t));
+    } catch (err) {
+      console.error('Task Error:', err);
+    }
+  };
+
+  const handleMoodLog = async (mood, intensity) => {
+    try {
+      await wellnessService.logMood({ mood, intensity, note: 'Logged from dashboard' });
+      alert(`Logged your ${mood} mood!`);
+      fetchData();
+    } catch (err) {
+      console.error('Mood Log Error:', err);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-[#F8FAFC]">
@@ -212,9 +282,11 @@ const Dashboard = () => {
             exit={{ opacity: 0, y: -20 }}
             transition={{ duration: 0.3 }}
           >
-            {activeTab === 'dashboard' && <DashboardHome />}
+            {activeTab === 'dashboard' && <DashboardHome tasks={tasks} handleToggleTask={handleToggleTask} handleMoodLog={handleMoodLog} />}
             {activeTab === 'chat' && (
+              // ... chat component ...
               <div className="flex flex-col h-[calc(100vh-80px)] glass rounded-[2rem] overflow-hidden">
+                {/* Previous chat code remains */}
                 <div className="p-6 border-b flex items-center justify-between">
                   <div className="flex items-center gap-4">
                     <div className="p-2 bg-primary/10 text-primary rounded-xl"><Brain /></div>
@@ -225,26 +297,34 @@ const Dashboard = () => {
                   </div>
                 </div>
                 <div className="flex-1 p-8 overflow-y-auto space-y-6">
-                   <div className="flex gap-4 max-w-2xl">
-                      <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-white shrink-0 shadow-lg shadow-primary/20"><Brain className="w-6 h-6" /></div>
-                      <div className="p-5 bg-white rounded-3xl rounded-tl-none shadow-sm border border-slate-100">
-                        <p className="text-slate-700 leading-relaxed font-medium">Hello Alex! I noticed you have been studying for 2 hours straight. How are you feeling? Remember to breathe. 🧘‍♂️</p>
-                      </div>
-                   </div>
-                   <div className="flex gap-4 max-w-2xl ml-auto flex-row-reverse">
-                      <div className="w-10 h-10 rounded-full bg-slate-900 flex items-center justify-center text-white shrink-0"><img src="https://i.pravatar.cc/150?u=42" className="rounded-full" /></div>
-                      <div className="p-5 bg-primary text-white rounded-3xl rounded-tr-none shadow-lg shadow-primary/20">
-                        <p className="leading-relaxed font-medium">I'm feeling a bit stressed about the calculus exam. Can you help me plan a quick review?</p>
-                      </div>
-                   </div>
+                   {chatMessages.map((msg, i) => (
+                     <div key={i} className={`flex gap-4 max-w-2xl ${msg.role === 'user' ? 'ml-auto flex-row-reverse' : ''}`}>
+                        <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white shrink-0 shadow-lg ${msg.role === 'user' ? 'bg-slate-900' : 'bg-primary shadow-primary/20'}`}>
+                          {msg.role === 'user' ? <img src="https://i.pravatar.cc/150?u=42" className="rounded-full" /> : <Brain className="w-6 h-6" />}
+                        </div>
+                        <div className={`p-5 rounded-3xl shadow-sm border ${msg.role === 'user' ? 'bg-primary text-white border-primary/20 rounded-tr-none' : 'bg-white text-slate-700 border-slate-100 rounded-tl-none'}`}>
+                          <p className="leading-relaxed font-medium">{msg.content}</p>
+                        </div>
+                     </div>
+                   ))}
+                   {isLoading && <div className="flex gap-4 animate-pulse"><div className="w-10 h-10 rounded-full bg-slate-200"/><div className="h-12 w-32 bg-slate-100 rounded-2xl"/></div>}
                 </div>
                 <div className="p-6 border-t flex gap-4">
-                  <input type="text" placeholder="Type your message..." className="input-field" />
-                  <button className="btn-primary aspect-square !px-4"><MessageSquare className="w-6 h-6" /></button>
+                  <input 
+                    type="text" 
+                    placeholder="Type your message..." 
+                    className="input-field" 
+                    value={inputMessage}
+                    onChange={(e) => setInputMessage(e.target.value)}
+                    onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
+                  />
+                  <button onClick={handleSendMessage} className="btn-primary aspect-square !px-4"><MessageSquare className="w-6 h-6" /></button>
                 </div>
               </div>
             )}
-            {activeTab !== 'dashboard' && activeTab !== 'chat' && (
+            {activeTab === 'analytics' && <Analytics />}
+            {activeTab === 'planner' && <Planner />}
+            {activeTab !== 'dashboard' && activeTab !== 'chat' && activeTab !== 'analytics' && activeTab !== 'planner' && (
               <div className="flex flex-col items-center justify-center py-40">
                 <div className="w-32 h-32 bg-slate-100 rounded-full flex items-center justify-center text-slate-300 mb-8 animate-bounce"><Target className="w-16 h-16" /></div>
                 <h2 className="text-3xl font-bold font-outfit text-slate-800">Coming Soon</h2>
